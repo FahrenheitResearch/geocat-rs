@@ -18,7 +18,7 @@ classifiers = [
     "Programming Language :: Rust",
     "Topic :: Scientific/Engineering :: Atmospheric Science",
 ]
-dependencies = ["numpy>=1.20"]
+dependencies = ["numpy>=1.20", "xarray>=2022.0", "metrust>=0.4.0"]
 readme = "README.md"
 
 [project.urls]

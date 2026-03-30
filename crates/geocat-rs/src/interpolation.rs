@@ -104,29 +104,39 @@ pub fn interpolate_columns(
             let increasing = xp[0] <= xp[nlev_in - 1];
 
             for (out_idx, &xi) in new_levels.iter().enumerate() {
+                // Out-of-bounds: return NaN (matching metpy behavior)
+                if increasing {
+                    if xi < xp[0] || xi > xp[nlev_in - 1] {
+                        out_col[out_idx] = f64::NAN;
+                        continue;
+                    }
+                } else {
+                    if xi > xp[0] || xi < xp[nlev_in - 1] {
+                        out_col[out_idx] = f64::NAN;
+                        continue;
+                    }
+                }
+
                 // Binary search for bracketing interval
                 let (lo, hi) = if increasing {
                     let mut hi = nlev_in - 1;
-                    let mut lo = 0usize;
-                    // Find first index where xp[i] >= xi
                     for i in 0..nlev_in {
                         if xp[i] >= xi {
                             hi = i;
                             break;
                         }
                     }
-                    lo = if hi > 0 { hi - 1 } else { 0 };
+                    let lo = if hi > 0 { hi - 1 } else { 0 };
                     (lo, hi)
                 } else {
-                    let mut hi = 0usize;
-                    let mut lo = 0usize;
+                    let mut hi = 0;
                     for i in 0..nlev_in {
                         if xp[i] <= xi {
                             hi = i;
                             break;
                         }
                     }
-                    lo = if hi > 0 { hi - 1 } else { 0 };
+                    let lo = if hi > 0 { hi - 1 } else { 0 };
                     (lo, hi)
                 };
 
@@ -135,7 +145,6 @@ pub fn interpolate_columns(
                     out_col[out_idx] = data[lo];
                 } else {
                     let t = (xi - xp[lo]) / denom;
-                    let t = t.clamp(0.0, 1.0);
                     out_col[out_idx] = data[lo] + t * (data[hi] - data[lo]);
                 }
             }

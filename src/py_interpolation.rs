@@ -1,6 +1,7 @@
 use geocat_rs::interpolation;
 use numpy::{PyArray1, PyReadonlyArray1};
 use pyo3::prelude::*;
+use pyo3::exceptions::PyValueError;
 use rayon::prelude::*;
 
 pub fn register(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -44,7 +45,14 @@ fn temp_extrapolate_array<'py>(
     let psfc = p_sfc.as_slice()?;
     let pss = ps.as_slice()?;
     let phi = phi_sfc.as_slice()?;
-    let result: Vec<f64> = (0..tb.len())
+    let n = tb.len();
+    if psfc.len() != n || pss.len() != n || phi.len() != n {
+        return Err(PyValueError::new_err(format!(
+            "All arrays must have the same length (got {}, {}, {}, {})",
+            n, psfc.len(), pss.len(), phi.len()
+        )));
+    }
+    let result: Vec<f64> = (0..n)
         .into_par_iter()
         .map(|i| interpolation::temp_extrapolate(tb[i], lev, psfc[i], pss[i], phi[i]))
         .collect();
@@ -65,7 +73,14 @@ fn geo_height_extrapolate_array<'py>(
     let psfc = p_sfc.as_slice()?;
     let pss = ps.as_slice()?;
     let phi = phi_sfc.as_slice()?;
-    let result: Vec<f64> = (0..tb.len())
+    let n = tb.len();
+    if psfc.len() != n || pss.len() != n || phi.len() != n {
+        return Err(PyValueError::new_err(format!(
+            "All arrays must have the same length (got {}, {}, {}, {})",
+            n, psfc.len(), pss.len(), phi.len()
+        )));
+    }
+    let result: Vec<f64> = (0..n)
         .into_par_iter()
         .map(|i| interpolation::geo_height_extrapolate(tb[i], lev, psfc[i], pss[i], phi[i]))
         .collect();

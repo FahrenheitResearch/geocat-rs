@@ -83,16 +83,17 @@ def compare_results(gc_result, rs_result, tol=0.01, label=""):
         f"{label}: max diff = {max_diff:.6e} (tol={tol})"
     )
 
-    # Check NaN locations match
-    gc_nan = np.isnan(gc_vals) & ~np.isnan(rs_vals)
-    rs_nan = np.isnan(rs_vals) & ~np.isnan(gc_vals)
-    # Allow geocat to have NaNs where we have values (out-of-bounds extrapolation)
-    # but not the reverse
-    if rs_nan.sum() > 0:
-        # We have NaN where geocat doesn't — check these are edge cases
-        rs_only_nan_pct = rs_nan.sum() / gc_vals.size * 100
-        assert rs_only_nan_pct < 1.0, (
-            f"{label}: {rs_only_nan_pct:.2f}% of values are NaN only in geors"
+    # NaN locations must match: if geocat returns NaN, we must too
+    gc_nan = np.isnan(gc_vals)
+    rs_nan = np.isnan(rs_vals)
+    nan_mismatch = gc_nan != rs_nan
+    if nan_mismatch.sum() > 0:
+        gc_nan_only = (gc_nan & ~rs_nan).sum()
+        rs_nan_only = (rs_nan & ~gc_nan).sum()
+        assert False, (
+            f"{label}: NaN mismatch — geocat has {gc_nan_only} NaNs where geors doesn't, "
+            f"geors has {rs_nan_only} NaNs where geocat doesn't "
+            f"(out of {gc_vals.size} total)"
         )
 
 

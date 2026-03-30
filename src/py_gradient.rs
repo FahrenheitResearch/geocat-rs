@@ -1,6 +1,7 @@
 use geocat_rs::gradient;
 use numpy::{PyArray1, PyReadonlyArray1};
 use pyo3::prelude::*;
+use pyo3::exceptions::PyValueError;
 use rayon::prelude::*;
 
 pub fn register(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -60,6 +61,11 @@ fn arc_lon_wgs84_array<'py>(
 ) -> PyResult<Bound<'py, PyArray1<f64>>> {
     let lon = lon.as_slice()?;
     let lat = lat.as_slice()?;
+    if lon.len() != lat.len() {
+        return Err(PyValueError::new_err(format!(
+            "lon and lat must have the same length ({} != {})", lon.len(), lat.len()
+        )));
+    }
     let result: Vec<f64> = (0..lon.len())
         .into_par_iter()
         .map(|i| gradient::arc_lon_wgs84(lon[i], lat[i]))
