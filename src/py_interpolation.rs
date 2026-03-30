@@ -11,6 +11,7 @@ pub fn register(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(geo_height_extrapolate_array, m)?)?;
     m.add_function(wrap_pyfunction!(pressure_at_hybrid_levels_array, m)?)?;
     m.add_function(wrap_pyfunction!(delta_pressure_1d, m)?)?;
+    m.add_function(wrap_pyfunction!(interpolate_columns, m)?)?;
     Ok(())
 }
 
@@ -96,6 +97,25 @@ fn pressure_at_hybrid_levels_array<'py>(
             interpolation::pressure_at_hybrid_level(hya[k], hyb[k], psfc[s], p0)
         })
         .collect();
+    Ok(PyArray1::from_vec(py, result))
+}
+
+/// Batch vertical interpolation across many columns (rayon-parallel).
+/// xp_flat and data_flat are column-major: (nlev_in * ncols).
+/// Returns flattened (nlev_out * ncols) column-major.
+#[pyfunction]
+fn interpolate_columns<'py>(
+    py: Python<'py>,
+    xp_flat: PyReadonlyArray1<'py, f64>,
+    data_flat: PyReadonlyArray1<'py, f64>,
+    new_levels: PyReadonlyArray1<'py, f64>,
+    nlev_in: usize,
+    ncols: usize,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let xp = xp_flat.as_slice()?;
+    let data = data_flat.as_slice()?;
+    let levels = new_levels.as_slice()?;
+    let result = geocat_rs::interpolation::interpolate_columns(xp, data, levels, nlev_in, ncols);
     Ok(PyArray1::from_vec(py, result))
 }
 

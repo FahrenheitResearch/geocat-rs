@@ -70,6 +70,80 @@ pub fn pressure_at_hybrid_level(hya: f64, hyb: f64, psfc: f64, p0: f64) -> f64 {
     hya * p0 + hyb * psfc
 }
 
+/// Batch vertical interpolation: interpolate many columns in parallel.
+///
+/// xp_flat: flattened pressure array (nlev_in * ncols), column-major
+/// data_flat: flattened data array (nlev_in * ncols), column-major
+/// new_levels: target pressure levels (nlev_out)
+/// nlev_in: number of input levels per column
+/// ncols: number of columns
+///
+/// Returns flattened output (nlev_out * ncols), column-major.
+pub fn interpolate_columns(
+    xp_flat: &[f64],
+    data_flat: &[f64],
+    new_levels: &[f64],
+    nlev_in: usize,
+    ncols: usize,
+) -> Vec<f64> {
+    use rayon::prelude::*;
+
+    let nlev_out = new_levels.len();
+    let mut result = vec![f64::NAN; nlev_out * ncols];
+
+    // Process columns in parallel
+    result
+        .par_chunks_mut(nlev_out)
+        .enumerate()
+        .for_each(|(col, out_col)| {
+            let xp_start = col * nlev_in;
+            let xp = &xp_flat[xp_start..xp_start + nlev_in];
+            let data = &data_flat[xp_start..xp_start + nlev_in];
+
+            // Determine if xp is increasing or decreasing
+            let increasing = xp[0] <= xp[nlev_in - 1];
+
+            for (out_idx, &xi) in new_levels.iter().enumerate() {
+                // Binary search for bracketing interval
+                let (lo, hi) = if increasing {
+                    let mut hi = nlev_in - 1;
+                    let mut lo = 0usize;
+                    // Find first index where xp[i] >= xi
+                    for i in 0..nlev_in {
+                        if xp[i] >= xi {
+                            hi = i;
+                            break;
+                        }
+                    }
+                    lo = if hi > 0 { hi - 1 } else { 0 };
+                    (lo, hi)
+                } else {
+                    let mut hi = 0usize;
+                    let mut lo = 0usize;
+                    for i in 0..nlev_in {
+                        if xp[i] <= xi {
+                            hi = i;
+                            break;
+                        }
+                    }
+                    lo = if hi > 0 { hi - 1 } else { 0 };
+                    (lo, hi)
+                };
+
+                let denom = xp[hi] - xp[lo];
+                if denom.abs() < 1e-30 {
+                    out_col[out_idx] = data[lo];
+                } else {
+                    let t = (xi - xp[lo]) / denom;
+                    let t = t.clamp(0.0, 1.0);
+                    out_col[out_idx] = data[lo] + t * (data[hi] - data[lo]);
+                }
+            }
+        });
+
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
