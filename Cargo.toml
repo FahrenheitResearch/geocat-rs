@@ -1,0 +1,23 @@
+[workspace]
+members = ["crates/*"]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "Apache-2.0"
+
+[package]
+name = "geocat-rs-py"
+version = "0.1.0"
+edition.workspace = true
+description = "Python bindings for geocat-rs — Rust-accelerated GeoCAT-comp functions"
+
+[lib]
+name = "_geocat_rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+geocat-rs = { path = "crates/geocat-rs" }
+pyo3 = { version = "0.23", features = ["extension-module"] }
+numpy = "0.23"
+rayon = "1"
